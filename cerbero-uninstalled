@@ -33,12 +33,15 @@ if [ "$OSTYPE" == "msys" ]; then
            echo "MSYS2 must use the UCRT64 environment instead of $MSYSTEM. https://www.msys2.org/docs/environments/";
            exit 1;
        fi
+    #    if [ -n "$GITHUB_WORKSPACE" ]; then
+    #        MSYS_VERSION=1
+    #    fi
    fi
 fi
 
 case "$MSYS_VERSION" in
     *1) PYTHON="py -3";;
-    *2) PYTHON="winpty py -3";;
+    *2) PYTHON="py -3";;
     *) PYTHON="python3";;
 esac
 

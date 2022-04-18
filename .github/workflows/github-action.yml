@@ -1,0 +1,67 @@
+name: msvc-64
+on: [push, pull_request]
+jobs:
+  cerbero-msvc:
+    runs-on: windows-2019
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v3
+
+      # Setup MSVC/Buildtools
+      - name: setup-msbuild
+        uses: microsoft/setup-msbuild@v1.1
+        with:
+          msbuild-architecture: x64
+          # limit version to version 16.x
+          # https://github.com/microsoft/vswhere/wiki/Examples
+          vs-version: '[16.0,17.0)'
+
+      # Setup msys2
+      - name: setup-msys2
+        uses: msys2/setup-msys2@v2
+        with:
+          path-type: inherit
+          msystem: UCRT64
+          update: true
+            # winpty
+          install: >-
+            mingw-w64-ucrt-x86_64-cc
+            git
+            perl
+            python3
+
+      - name: fix-git
+        shell: msys2 {0}
+        run: |
+          git config --global core.autocrlf false
+
+      - name: bootstrap-bootstrap
+        shell: powershell
+        run: |
+          $choco_url = 'https://chocolatey.org/install.ps1'
+
+          Invoke-Expression ((New-Object System.Net.WebClient).DownloadString($choco_url))
+          Import-Module "$env:ProgramData\chocolatey\helpers\chocolateyProfile.psm1"
+          Update-SessionEnvironment
+
+          choco install -y cmake --installargs 'ADD_CMAKE_TO_PATH=System'
+          choco install -y vcredist140 python3 wixtoolset
+
+      - name: bootstrap
+        shell: msys2 {0}
+        run: |
+          ./cerbero-uninstalled -v visualstudio -c config/win64.cbc -v nowerror --timestamps bootstrap
+          ./cerbero-uninstalled -v visualstudio -c config/win64.cbc --timestamps fetch-package gstreamer-1.0
+
+      - name: build pkg
+        shell: msys2 {0}
+        run: |
+          ./cerbero-uninstalled -v visualstudio -c config/win64.cbc -v nowerror --timestamps package gstreamer-1.0
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: cerbero-windows-artifacts
+          path: |
+            **/*.msi
+            **/*.log
